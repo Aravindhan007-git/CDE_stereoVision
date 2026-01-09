@@ -1,4 +1,4 @@
-# Crowd Density Estimation – Method 1 (Single Camera)
+# Crowd Density Estimation – Method 1 (Monocular Approach)
 
 ## Table of Contents
 1. [Project Overview](#project-overview)  
