@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crowd Density Estimation System</title>
+    <style>
+        :root {
+            --color-white: rgba(255, 255, 255, 1);
+            --color-black: rgba(0, 0, 0, 1);
+            --color-cream-50: rgba(252, 252, 249, 1);
+            --color-cream-100: rgba(255, 255, 253, 1);
+            --color-gray-100: rgba(249, 250, 251, 1);
+            --color-gray-200: rgba(243, 244, 246, 1);
+            --color-gray-300: rgba(229, 231, 235, 1);
+            --color-gray-400: rgba(209, 213, 219, 1);
+            --color-slate-500: rgba(100, 116, 139, 1);
+            --color-slate-900: rgba(15, 23, 42, 1);
+            
+            --color-blue-500: rgba(59, 130, 246, 1);
+            --color-blue-600: rgba(37, 99, 235, 1);
+            --color-blue-700: rgba(29, 78, 216, 1);
+            --color-blue-50: rgba(239, 246, 255, 1);
+            --color-green-density: #22c55e;
+            --color-yellow-density: #facc15;
+            --color-red-density: #ef4444;
+
+            --space-4: 4px;
+            --space-8: 8px;
+            --space-12: 12px;
+            --space-16: 16px;
+            --space-20: 20px;
+            --space-24: 24px;
+            --space-32: 32px;
+
+            --radius-sm: 6px;
+            --radius-base: 8px;
+            --radius-md: 10px;
+            --shadow-sm: 0 8px 16px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 16px 32px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 20px rgba(168, 85, 247, 0.3);
+
+            --duration-fast: 150ms;
+            --duration-normal: 250ms;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Open Sans', sans-serif;
+            color: var(--color-slate-900);
+            background-color: var(--color-cream-50);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            margin: 0;
+            padding: var(--space-20);
+            background: linear-gradient(135deg, var(--color-cream-50) 0%, var(--color-gray-100) 100%);
+            min-height: 100vh;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: var(--space-32);
+            background: linear-gradient(135deg, var(--color-blue-600) 0%, var(--color-blue-500) 100%);
+            color: white;
+            padding: var(--space-24);
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            border: none;
+            animation: slideDown 0.6s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+
+
+        .header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            margin: var(--space-8) 0 0 0;
+            font-size: 14px;
+            opacity: 0.95;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Layout Grid */
+        .layout {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            gap: var(--space-24);
+            min-height: calc(100vh - 300px);
+        }
+
+        /* Panel Styling */
+        .panel {
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            padding: var(--space-20);
+            border: 1px solid var(--color-gray-200);
+            animation: fadeIn 0.7s ease-out;
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.2);
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 var(--space-16) 0;
+            color: var(--color-slate-900);
+            display: flex;
+            align-items: center;
+            gap: var(--space-8);
+        }
+
+        .panel-title-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--color-blue-500);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+
+        /* Input Panel */
+        .input-panel {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-16);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-12);
+        }
+
+        .input-group-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--color-slate-500);
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            padding: var(--space-12);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--duration-fast);
+            border: 2px solid transparent;
+            color: var(--color-slate-900);
+        }
+
+        .radio-option:hover {
+            background-color: var(--color-blue-50);
+            border-color: transparent;
+            transform: translateX(4px);
+        }
+
+        .radio-option input[type="radio"] {
+            margin-right: var(--space-12);
+            cursor: pointer;
+            accent-color: var(--color-blue-500);
+        }
+
+        .radio-option.selected {
+            background-color: rgba(59, 130, 246, 0.08);
+            border-color: var(--color-blue-500);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: var(--space-12);
+            background-color: var(--color-blue-50);
+            border-radius: var(--radius-sm);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--duration-fast);
+            border: 2px dashed var(--color-blue-500);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--color-slate-900);
+        }
+
+        .file-input-label:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-color: var(--color-blue-600);
+        }
+
+        .file-name {
+            font-size: 12px;
+            color: var(--color-slate-500);
+            margin-top: var(--space-8);
+            word-break: break-all;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: var(--space-12) var(--space-16);
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--duration-normal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-8);
+        }
+
+        .btn-primary {
+            background: var(--color-blue-600);
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn-primary:hover:not(:disabled)::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--color-blue-700);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background-color: var(--color-gray-200);
+            color: var(--color-slate-900);
+            border: none;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background-color: var(--color-gray-300);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: var(--space-12);
+        }
+
+        .btn-group .btn {
+            flex: 1;
+        }
+
+        .method-toggle {
+            display: flex;
+            gap: var(--space-8);
+            background-color: var(--color-gray-200);
+            border-radius: var(--radius-sm);
+            padding: var(--space-4);
+            border: none;
+        }
+
+        .method-toggle-btn {
+            flex: 1;
+            padding: var(--space-8) var(--space-12);
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all var(--duration-fast);
+            color: var(--color-slate-500);
+        }
+
+        .method-toggle-btn.active {
+            background: white;
+            color: var(--color-blue-600);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: none;
+        }
+
+        /* Video Panel */
+        .video-panel {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-16);
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: var(--color-slate-900);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--color-gray-300);
+        }
+
+        video, canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+        }
+
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .video-status {
+            position: absolute;
+            top: var(--space-12);
+            left: var(--space-12);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: var(--space-8) var(--space-12);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--space-8);
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.active {
+            background-color: var(--color-green-density);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Metrics Panel */
+        .metrics-panel {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-16);
+        }
+
+        .metric-card {
+            background: var(--color-blue-50);
+            padding: var(--space-16);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-gray-200);
+            animation: slideInLeft 0.6s ease-out;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            border-color: var(--color-blue-500);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .metric-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--color-slate-500);
+            margin-bottom: var(--space-8);
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-blue-600);
+            margin-bottom: var(--space-8);
+            animation: slideDown 0.7s ease-out;
+        }
+
+        .metric-detail {
+            font-size: 13px;
+            color: var(--color-slate-500);
+            display: flex;
+            justify-content: space-between;
+            margin-top: var(--space-8);
+        }
+
+        .density-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: var(--space-8);
+            vertical-align: middle;
+        }
+
+        .density-indicator.low {
+            background-color: var(--color-green-density);
+        }
+
+        .density-indicator.medium {
+            background-color: var(--color-yellow-density);
+        }
+
+        .density-indicator.high {
+            background-color: var(--color-red-density);
+        }
+
+        .density-label {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* Density Bar */
+        .density-bar-container {
+            margin-top: var(--space-12);
+            padding: var(--space-12);
+            background-color: var(--color-gray-100);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-gray-200);
+        }
+
+        .density-bar-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--color-slate-500);
+            margin-bottom: var(--space-8);
+        }
+
+        .density-bar {
+            width: 100%;
+            height: 24px;
+            background-color: var(--color-gray-200);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            position: relative;
+            border: 1px solid var(--color-gray-300);
+        }
+
+        .density-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--color-green-density), var(--color-yellow-density), var(--color-red-density));
+            transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: var(--space-8);
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+            animation: barGlow 2s infinite;
+        }
+
+        @keyframes barGlow {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 8px 2px rgba(59, 130, 246, 0.3);
+            }
+        }
+
+        .density-bar-text {
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Trend Chart */
+        .trend-chart {
+            margin-top: var(--space-16);
+            padding: var(--space-12);
+            background: var(--color-blue-50);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-gray-200);
+        }
+
+        .trend-chart-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--color-slate-500);
+            margin-bottom: var(--space-12);
+        }
+
+        #trendCanvas {
+            width: 100%;
+            height: 100px;
+            display: block;
+        }
+
+        /* Bottom Density Bar */
+        .density-bottom-container {
+            margin-top: var(--space-32);
+            padding: var(--space-20);
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--color-gray-200);
+        }
+
+        .density-bottom-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--color-slate-500);
+            margin-bottom: var(--space-16);
+        }
+
+        .density-bottom-bar {
+            width: 100%;
+            height: 32px;
+            background-color: var(--color-gray-200);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            position: relative;
+            border: 1px solid var(--color-gray-300);
+        }
+
+        .density-bottom-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--color-green-density), var(--color-yellow-density), var(--color-red-density));
+            transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+            animation: barGlow 2s infinite;
+        }
+
+        .density-bottom-bar-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Info Section */
+        .info-section {
+            display: flex;
+            gap: var(--space-16);
+            font-size: 13px;
+            color: var(--color-slate-500);
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-8);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1400px) {
+            .layout {
+                grid-template-columns: 250px 1fr 280px;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .layout {
+                grid-template-columns: 1fr;
+                gap: var(--space-16);
+            }
+
+            .video-container {
+                aspect-ratio: 16/9;
+            }
+
+            .panel {
+                padding: var(--space-16);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: var(--space-16);
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            body {
+                padding: var(--space-12);
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .info-section {
+                flex-direction: column;
+                gap: var(--space-12);
+            }
+        }
+
+        /* Accessibility */
+        button:focus-visible,
+        input:focus-visible {
+            outline: 2px solid var(--color-blue-600);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>👥 Crowd Density Estimation System</h1>
+            <p>Real-time crowd analysis with monocular and stereo vision methods</p>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="layout">
+            <!-- Left Panel: Input Controls -->
+            <div class="panel input-panel">
+                <div class="panel-title">
+                    <div class="panel-title-icon">⚙️</div>
+                    Input Controls
+                </div>
+
+                <div class="input-group">
+                    <label class="input-group-label">Source Selection</label>
+                    <label class="radio-option selected">
+                        <input type="radio" name="source" value="camera" checked>
+                        <span>📷 Live Camera</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="source" value="video">
+                        <span>🎥 Video File</span>
+                    </label>
+                </div>
+
+                <div class="input-group" id="fileUploadGroup" style="display: none;">
+                    <label class="input-group-label">Upload Video</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="videoFile" accept="video/*">
+                        <label for="videoFile" class="file-input-label">
+                            📁 Choose Video File
+                        </label>
+                        <div class="file-name" id="fileName"></div>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-group-label">Method Selection</label>
+                    <div class="method-toggle">
+                        <button class="method-toggle-btn active" data-method="monocular">Monocular</button>
+                        <button class="method-toggle-btn" data-method="stereo">Stereo</button>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-group-label">Controls</label>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="startBtn">
+                            ▶️ Start
+                        </button>
+                        <button class="btn btn-secondary" id="stopBtn" disabled>
+                            ⏹️ Stop
+                        </button>
+                    </div>
+                </div>
+
+                <div style="margin-top: var(--space-20); padding-top: var(--space-16); border-top: 1px solid var(--color-gray-200);">
+                    <label class="input-group-label">Status</label>
+                    <div style="font-size: 13px; color: var(--color-slate-500); line-height: 1.6;">
+                        <p id="statusText">Ready to capture video</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Panel: Video Feed -->
+            <div class="panel video-panel">
+                <div class="panel-title">
+                    <div class="panel-title-icon">🎬</div>
+                    Video Feed
+                </div>
+                <div class="video-container" id="videoContainer">
+                    <video id="videoElement" muted playsinline></video>
+                    <canvas id="overlayCanvas"></canvas>
+                    <div class="video-status" id="videoStatus" style="display: none;">
+                        <span class="status-indicator active"></span>
+                        <span id="statusLabel">Live</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Metrics -->
+            <div class="panel metrics-panel">
+                <div class="panel-title">
+                    <div class="panel-title-icon">📊</div>
+                    Metrics
+                </div>
+
+                <!-- Density Level -->
+                <div class="metric-card">
+                    <div class="metric-label">Density Level</div>
+                    <div style="display: flex; align-items: center; margin-bottom: var(--space-12);">
+                        <span class="density-indicator low" id="densityIndicator"></span>
+                        <span class="density-label" id="densityLevel">LOW</span>
+                    </div>
+                    <div class="density-bar-container">
+                        <div class="density-bar-label">Frame Coverage</div>
+                        <div class="density-bar">
+                            <div class="density-bar-fill" id="densityBarFill">
+                                <span class="density-bar-text" id="densityPercent">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- People Count -->
+                <div class="metric-card">
+                    <div class="metric-label">People Count</div>
+                    <div class="metric-value" id="peopleCount">0</div>
+                    <div class="metric-detail">
+                        <span>Detected individuals</span>
+                    </div>
+                </div>
+
+                <!-- Accuracy -->
+                <div class="metric-card">
+                    <div class="metric-label">Accuracy</div>
+                    <div class="metric-value" id="accuracy">0%</div>
+                    <div class="metric-detail">
+                        <span>Confidence score</span>
+                    </div>
+                </div>
+
+                <!-- Method -->
+                <div class="metric-card">
+                    <div class="metric-label">Method</div>
+                    <div class="metric-value" id="methodDisplay" style="font-size: 16px; font-weight: 600;">Monocular</div>
+                    <div class="metric-detail">
+                        <span id="methodDescription">Single camera depth</span>
+                    </div>
+                </div>
+
+                <!-- Trend Chart -->
+                <div class="trend-chart">
+                    <div class="trend-chart-label">Density Trend</div>
+                    <canvas id="trendCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Density Bar -->
+        <div class="density-bottom-container">
+            <div class="density-bottom-label">Overall Density Bar</div>
+            <div class="density-bottom-bar">
+                <div class="density-bottom-bar-fill" id="densityBottomBarFill">
+                    <span class="density-bottom-bar-text" id="densityBottomPercent">0%</span>
+                </div>
+            </div>
+            <div class="info-section" style="margin-top: var(--space-16);">
+                <div class="info-item">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background-color: var(--color-green-density);"></span>
+                    <span>Low Density (&lt;30%)</span>
+                </div>
+                <div class="info-item">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background-color: var(--color-yellow-density);"></span>
+                    <span>Medium Density (30-70%)</span>
+                </div>
+                <div class="info-item">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background-color: var(--color-red-density);"></span>
+                    <span>High Density (&gt;70%)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // State Management
+        // ============================================
+        const state = {
+            isRunning: false,
+            currentSource: 'camera',
+            currentMethod: 'monocular',
+            videoStream: null,
+            peopleCount: 0,
+            coverage: 0,
+            accuracy: 0,
+            densityHistory: [],
+            maxHistoryLength: 60,
+            detectedBoxes: []
+        };
+
+        // ============================================
+        // DOM Elements
+        // ============================================
+        const videoElement = document.getElementById('videoElement');
+        const overlayCanvas = document.getElementById('overlayCanvas');
+        const videoContainer = document.getElementById('videoContainer');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const sourceRadios = document.querySelectorAll('input[name="source"]');
+        const fileUploadGroup = document.getElementById('fileUploadGroup');
+        const videoFile = document.getElementById('videoFile');
+        const fileName = document.getElementById('fileName');
+        const methodBtns = document.querySelectorAll('.method-toggle-btn');
+        const videoStatus = document.getElementById('videoStatus');
+        const statusLabel = document.getElementById('statusLabel');
+        const statusText = document.getElementById('statusText');
+
+        // Metrics
+        const densityLevel = document.getElementById('densityLevel');
+        const densityIndicator = document.getElementById('densityIndicator');
+        const densityBarFill = document.getElementById('densityBarFill');
+        const densityPercent = document.getElementById('densityPercent');
+        const densityBottomBarFill = document.getElementById('densityBottomBarFill');
+        const densityBottomPercent = document.getElementById('densityBottomPercent');
+        const peopleCountEl = document.getElementById('peopleCount');
+        const accuracyEl = document.getElementById('accuracy');
+        const methodDisplay = document.getElementById('methodDisplay');
+        const methodDescription = document.getElementById('methodDescription');
+        const trendCanvas = document.getElementById('trendCanvas');
+        const trendCtx = trendCanvas.getContext('2d');
+
+        // ============================================
+        // Event Listeners
+        // ============================================
+        sourceRadios.forEach(radio => {
+            radio.addEventListener('change', handleSourceChange);
+        });
+
+        videoFile.addEventListener('change', handleFileSelect);
+
+        methodBtns.forEach(btn => {
+            btn.addEventListener('click', handleMethodChange);
+        });
+
+        startBtn.addEventListener('click', handleStart);
+        stopBtn.addEventListener('click', handleStop);
+
+        // ============================================
+        // Source Selection
+        // ============================================
+        function handleSourceChange(e) {
+            state.currentSource = e.target.value;
+            fileUploadGroup.style.display = state.currentSource === 'video' ? 'block' : 'none';
+            updateRadioSelection();
+        }
+
+        function updateRadioSelection() {
+            document.querySelectorAll('.radio-option').forEach((option, i) => {
+                const input = option.querySelector('input');
+                if (input.checked) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+            });
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = `📄 ${file.name}`;
+                const url = URL.createObjectURL(file);
+                videoElement.src = url;
+                statusText.textContent = 'Video file selected. Click "Start" to process.';
+            }
+        }
+
+        // ============================================
+        // Method Selection
+        // ============================================
+        function handleMethodChange(e) {
+            state.currentMethod = e.target.dataset.method;
+            
+            methodBtns.forEach(btn => {
+                if (btn.dataset.method === state.currentMethod) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            if (state.currentMethod === 'monocular') {
+                methodDisplay.textContent = 'Monocular';
+                methodDescription.textContent = 'Single camera depth estimation';
+            } else {
+                methodDisplay.textContent = 'Stereo';
+                methodDescription.textContent = 'Dual camera depth-aware estimation';
+            }
+        }
+
+        // ============================================
+        // Video Processing
+        // ============================================
+        async function handleStart() {
+            try {
+                // Add loading state
+                startBtn.classList.add('loading');
+                startBtn.textContent = 'Starting...';
+                startBtn.disabled = true;
+
+                if (state.currentSource === 'camera') {
+                    await startCamera();
+                } else if (state.currentSource === 'video' && videoElement.src) {
+                    startVideoPlayback();
+                } else {
+                    alert('Please select a video file first');
+                    startBtn.classList.remove('loading');
+                    startBtn.textContent = '▶️ Start';
+                    startBtn.disabled = false;
+                    return;
+                }
+
+                state.isRunning = true;
+                startBtn.classList.remove('loading');
+                startBtn.textContent = '▶️ Start';
+                stopBtn.disabled = false;
+                videoStatus.style.display = 'flex';
+                statusText.textContent = `Processing ${state.currentSource} with ${state.currentMethod} method...`;
+
+                processVideo();
+            } catch (error) {
+                console.error('Error starting video:', error);
+                statusText.textContent = 'Error: Unable to access camera';
+                startBtn.classList.remove('loading');
+                startBtn.textContent = '▶️ Start';
+                startBtn.disabled = false;
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                videoElement.srcObject = stream;
+                state.videoStream = stream;
+                statusLabel.textContent = 'Live Camera';
+            } catch (error) {
+                throw new Error('Camera not accessible: ' + error.message);
+            }
+        }
+
+        function startVideoPlayback() {
+            videoElement.play();
+            statusLabel.textContent = 'Video Playback';
+        }
+
+        function handleStop() {
+            state.isRunning = false;
+            stopBtn.disabled = true;
+            startBtn.disabled = false;
+            videoStatus.style.display = 'none';
+            
+            if (state.videoStream) {
+                state.videoStream.getTracks().forEach(track => track.stop());
+                state.videoStream = null;
+            }
+            
+            videoElement.pause();
+            statusText.textContent = 'Processing stopped. Ready for new session.';
+        }
+
+        // ============================================
+        // Video Processing Loop
+        // ============================================
+        function processVideo() {
+            if (!state.isRunning) return;
+
+            // Simulate detection data
+            simulateDetection();
+
+            // Update overlay canvas
+            updateOverlay();
+
+            // Update metrics
+            updateMetrics();
+
+            // Draw trend chart
+            drawTrendChart();
+
+            requestAnimationFrame(processVideo);
+        }
+
+        function simulateDetection() {
+            // Simulate varying crowd density over time
+            const baseCount = Math.floor(Math.random() * 50);
+            const trend = Math.sin(Date.now() / 2000) * 20;
+            
+            state.peopleCount = Math.max(0, Math.floor(baseCount + trend + (Math.random() - 0.5) * 10));
+            state.coverage = (state.peopleCount / 100) * (0.3 + Math.random() * 0.4);
+            state.coverage = Math.min(1, state.coverage);
+            state.accuracy = 75 + Math.random() * 20;
+
+            // Generate random bounding boxes for visualization
+            state.detectedBoxes = [];
+            for (let i = 0; i < Math.min(state.peopleCount, 50); i++) {
+                state.detectedBoxes.push({
+                    x: Math.random() * 0.8,
+                    y: Math.random() * 0.8,
+                    width: 0.08 + Math.random() * 0.15,
+                    height: 0.15 + Math.random() * 0.25
+                });
+            }
+
+            // Update history for trend
+            state.densityHistory.push(state.coverage * 100);
+            if (state.densityHistory.length > state.maxHistoryLength) {
+                state.densityHistory.shift();
+            }
+        }
+
+        function updateOverlay() {
+            const rect = videoContainer.getBoundingClientRect();
+            overlayCanvas.width = videoContainer.offsetWidth;
+            overlayCanvas.height = videoContainer.offsetHeight;
+
+            const ctx = overlayCanvas.getContext('2d');
+            ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+            // Draw bounding boxes
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2;
+            ctx.font = 'bold 12px Arial';
+            ctx.fillStyle = 'rgba(255, 217, 0, 0.7)';
+
+            state.detectedBoxes.forEach((box, i) => {
+                const x = box.x * overlayCanvas.width;
+                const y = box.y * overlayCanvas.height;
+                const w = box.width * overlayCanvas.width;
+                const h = box.height * overlayCanvas.height;
+
+                ctx.strokeRect(x, y, w, h);
+                ctx.fillText(`P${i + 1}`, x + 5, y - 5);
+            });
+
+            // Draw semi-transparent density overlay
+            const densityColor = getDensityColor(state.coverage);
+            ctx.fillStyle = `rgba(${densityColor.r}, ${densityColor.g}, ${densityColor.b}, 0.15)`;
+            ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        }
+
+        function getDensityColor(coverage) {
+            if (coverage < 0.3) {
+                return { r: 40, g: 167, b: 69 }; // Green
+            } else if (coverage < 0.7) {
+                return { r: 255, g: 193, b: 7 }; // Yellow
+            } else {
+                return { r: 220, g: 53, b: 69 }; // Red
+            }
+        }
+
+        function updateMetrics() {
+            // Update density level
+            let level, color;
+            if (state.coverage < 0.3) {
+                level = 'LOW';
+                color = 'low';
+            } else if (state.coverage < 0.7) {
+                level = 'MEDIUM';
+                color = 'medium';
+            } else {
+                level = 'HIGH';
+                color = 'high';
+            }
+
+            densityLevel.textContent = level;
+            densityIndicator.className = 'density-indicator ' + color;
+
+            // Update bars
+            const coveragePercent = Math.round(state.coverage * 100);
+            densityBarFill.style.width = coveragePercent + '%';
+            densityPercent.textContent = coveragePercent + '%';
+            
+            densityBottomBarFill.style.width = coveragePercent + '%';
+            densityBottomPercent.textContent = coveragePercent + '%';
+
+            // Update metrics
+            peopleCountEl.textContent = state.peopleCount;
+            accuracyEl.textContent = Math.round(state.accuracy) + '%';
+        }
+
+        function drawTrendChart() {
+            const width = trendCanvas.offsetWidth;
+            const height = trendCanvas.offsetHeight;
+            trendCanvas.width = width;
+            trendCanvas.height = height;
+
+            const ctx = trendCtx;
+            ctx.fillStyle = '#f9fafb';
+            ctx.fillRect(0, 0, width, height);
+
+            if (state.densityHistory.length < 2) return;
+
+            // Draw background zones
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.08)';
+            ctx.fillRect(0, 0, width, height * 0.3);
+            
+            ctx.fillStyle = 'rgba(250, 204, 21, 0.08)';
+            ctx.fillRect(0, height * 0.3, width, height * 0.4);
+            
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
+            ctx.fillRect(0, height * 0.7, width, height * 0.3);
+
+            // Draw grid
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, height * 0.3);
+            ctx.lineTo(width, height * 0.3);
+            ctx.moveTo(0, height * 0.7);
+            ctx.lineTo(width, height * 0.7);
+            ctx.stroke();
+
+            // Draw trend line
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            state.densityHistory.forEach((value, i) => {
+                const x = (i / state.densityHistory.length) * width;
+                const y = height - (value / 100) * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+
+            // Draw current value indicator
+            if (state.densityHistory.length > 0) {
+                const lastValue = state.densityHistory[state.densityHistory.length - 1];
+                const x = width;
+                const y = height - (lastValue / 100) * height;
+
+                ctx.fillStyle = '#2180a3';
+                ctx.beginPath();
+                ctx.arc(x - 5, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+
+
+        // ============================================
+        // Initialization
+        // ============================================
+        updateRadioSelection();
+    </script>
+</body>
+</html>
+            themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            // Store preference
