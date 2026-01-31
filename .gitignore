@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data folders
+depth_frames/
+stereo_2d_frames/
+olddata/
+data/
+results/
+output/
+
+# Media
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.avi
+*.mkv
+
+# Models
+*.pt
+*.pth
+*.h5
+
+# Logs
+*.log
